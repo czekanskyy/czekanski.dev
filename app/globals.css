@@ -23,6 +23,6 @@ body {
   }
 }
 
-.anim-blinking {
+.animate-blink {
   animation: blink 1s infinite steps(1, end);
 }
