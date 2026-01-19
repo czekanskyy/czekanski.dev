@@ -1,10 +1,10 @@
 'use client';
 
-import { Fira_Mono } from 'next/font/google';
+import { Fira_Code } from 'next/font/google';
 import Link from 'next/link';
 import { useState } from 'react';
 
-const firaMono = Fira_Mono({
+const firaCode = Fira_Code({
   subsets: ['latin'],
   weight: ['400', '500', '700'],
 });
@@ -34,7 +34,7 @@ export default function Projects() {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div id='projects' className={`min-h-screen ${firaMono.className} flex flex-col w-[1200px] mx-auto p-8 pt-28 pb-28 justify-center snap-start`}>
+    <div id='projects' className={`min-h-screen ${firaCode.className} flex flex-col max-w-[1200px] mx-auto p-8 pt-28 pb-36 justify-center snap-start`}>
       <h2 className='text-5xl text-white font-bold mb-12'>
         <span className='text-2xl text-blue-400'>#2</span> My Projects
       </h2>
@@ -128,7 +128,7 @@ export default function Projects() {
 
         {/* Fade Out Overlay & Load More Button */}
         {!isExpanded && (
-          <div className='absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-[#09090B] via-[#09090B]/80 to-transparent flex items-end justify-center pb-8 z-10'>
+          <div className='absolute bottom-0 left-0 w-full h-64 bg-linear-to-t from-[#09090B] via-[#09090B]/80 to-transparent flex items-end justify-center pb-8 z-10'>
             <button
               onClick={() => setIsExpanded(true)}
               className='text-white font-mono text-lg hover:text-blue-400 transition-colors flex items-center gap-2 group'

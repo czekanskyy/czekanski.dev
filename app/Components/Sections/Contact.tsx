@@ -1,23 +1,38 @@
 'use client';
 
-import { Fira_Mono } from 'next/font/google';
+import { Fira_Code } from 'next/font/google';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { sendEmail } from '@/app/actions/sendEmail';
 
-const firaMono = Fira_Mono({
+const firaCode = Fira_Code({
   subsets: ['latin'],
   weight: ['400', '500', '700'],
 });
 
-const socialLinks = [
-  { platform: 'GitHub', url: 'https://github.com', icon: null },
-  { platform: 'LinkedIn', url: 'https://linkedin.com', icon: null },
-  { platform: 'Twitter', url: 'https://twitter.com', icon: null },
-];
-
 export default function Contact() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [socialLinks, setSocialLinks] = useState<any[] | null>(null);
+  const [description, setDescription] = useState<string>('');
+
+  useEffect(() => {
+    // Fetch contact content from CMS
+    fetch('/api/content/contact')
+      .then((res) => res.json())
+      .then((data) => {
+        setSocialLinks(data.socialLinks || []);
+        setDescription(data.description || "I'm currently open to new opportunities.");
+      })
+      .catch(() => {
+        // Fallback data
+        setSocialLinks([
+          { platform: 'GitHub', url: 'https://github.com' },
+          { platform: 'LinkedIn', url: 'https://linkedin.com' },
+          { platform: 'Twitter', url: 'https://twitter.com' },
+        ]);
+        setDescription("I'm currently open to new opportunities. Whether you have a question or just want to say hi, I'll try my best to get back to you!");
+      });
+  }, []);
 
   async function handleSubmit(formData: FormData) {
     setStatus('loading');
@@ -25,24 +40,28 @@ export default function Contact() {
 
     if (result.success) {
       setStatus('success');
-      // Reset form if needed, though native form action doesn't easily allow ref access without hooks
-      // For simplicity, we just show success message
     } else {
       setStatus('error');
     }
   }
 
+  if (!socialLinks) {
+    return (
+      <div className={`min-h-screen ${firaCode.className} flex items-center justify-center`}>
+        <p className='text-white'>Loading...</p>
+      </div>
+    );
+  }
+
   return (
-    <div id='contact' className={`min-h-screen ${firaMono.className} flex flex-col w-[1200px] mx-auto p-8 pt-28 pb-28 justify-center snap-start`}>
+    <div id='contact' className={`min-h-screen ${firaCode.className} flex flex-col max-w-[1200px] mx-auto p-8 pt-28 pb-28 justify-center snap-start`}>
       <h2 className='text-5xl text-white font-bold mb-12'>
         <span className='text-2xl text-blue-400'>#5</span> Contact
       </h2>
 
-      <div className='grid grid-cols-2 gap-12'>
+      <div className='grid grid-cols-1 lg:grid-cols-2 gap-12'>
         <div className='flex flex-col gap-6'>
-          <p className='text-neutral-400 text-lg leading-relaxed'>
-            I&apos;m currently open to new opportunities. Whether you have a question or just want to say hi, I&apos;ll try my best to get back to you!
-          </p>
+          <p className='text-neutral-400 text-lg leading-relaxed'>{description}</p>
           <div className='flex flex-col gap-4 mt-4'>
             <h3 className='text-xl text-white font-bold'>Find me on:</h3>
             <div className='flex gap-4'>

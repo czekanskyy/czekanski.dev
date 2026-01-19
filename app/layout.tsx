@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import './globals.css';
+import MouseSpotlight from './Components/MouseSpotlight';
 
 export const metadata: Metadata = {
   title: 'Dominik Czekański 👨🏻‍💻',
@@ -14,7 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang='en' suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }
