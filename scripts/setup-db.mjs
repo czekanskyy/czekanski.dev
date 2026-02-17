@@ -46,7 +46,7 @@ async function main() {
   // Step 2: Push schema to database
   // `prisma db push` is safe — it creates missing tables without dropping existing data.
   // It only modifies the schema, never deletes rows.
-  const pushSuccess = run('npx prisma db push --skip-generate', 'Pushing schema to database');
+  const pushSuccess = run('npx prisma db push', 'Pushing schema to database');
 
   if (!pushSuccess) {
     console.error('❌ Could not push schema to database. Build will continue without DB setup.');

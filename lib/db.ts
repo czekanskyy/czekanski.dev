@@ -1,61 +1,73 @@
 import { prisma } from './prisma';
 
-// Get all content as a keyed object
 // Get all content as a keyed object, sorted by order
+// Falls back to default content if DB is unavailable (e.g. during build/prerendering)
 export async function getContent(): Promise<Record<string, any>> {
-  const sections = await prisma.section.findMany({
-    orderBy: {
-      order: 'asc',
-    },
-  });
+  try {
+    const sections = await prisma.section.findMany({
+      orderBy: {
+        order: 'asc',
+      },
+    });
 
-  const content: Record<string, any> = {};
+    const content: Record<string, any> = {};
 
-  if (sections.length > 0) {
-    for (const section of sections) {
-      content[section.key] = {
-        ...(section.data as object),
-        // Include metadata in the data object for frontend use
-        _meta: {
-          id: section.id,
-          key: section.key,
-          title: section.title,
-          navTitle: section.navTitle,
-          slug: section.slug,
-          order: section.order,
-        },
-      };
+    if (sections.length > 0) {
+      for (const section of sections) {
+        content[section.key] = {
+          ...(section.data as object),
+          // Include metadata in the data object for frontend use
+          _meta: {
+            id: section.id,
+            key: section.key,
+            title: section.title,
+            navTitle: section.navTitle,
+            slug: section.slug,
+            order: section.order,
+          },
+        };
+      }
+      return content;
     }
-    return content;
-  }
 
-  // If DB is empty, return defaults
-  return getDefaultContent();
+    // If DB is empty, return defaults
+    return getDefaultContent();
+  } catch (error) {
+    console.warn('⚠️  Database unavailable, using default content:', (error as Error).message);
+    return getDefaultContent();
+  }
 }
 
 // Get a single section
+// Falls back to default content if DB is unavailable
 export async function getSectionContent(key: string): Promise<any | null> {
-  const section = await prisma.section.findUnique({
-    where: { key },
-  });
+  try {
+    const section = await prisma.section.findUnique({
+      where: { key },
+    });
 
-  if (!section) {
-    // Fall back to default content
+    if (!section) {
+      // Fall back to default content
+      const defaults = getDefaultContent();
+      return defaults[key] ?? null;
+    }
+
+    return {
+      ...(section.data as object),
+      _meta: {
+        id: section.id,
+        key: section.key,
+        title: section.title,
+        navTitle: section.navTitle,
+        slug: section.slug,
+        order: section.order,
+      },
+    };
+  } catch (error) {
+    console.warn(`⚠️  Database unavailable for section '${key}', using default:`, (error as Error).message);
     const defaults = getDefaultContent();
     return defaults[key] ?? null;
   }
-
-  return {
-    ...(section.data as object),
-    _meta: {
-      id: section.id,
-      key: section.key,
-      title: section.title,
-      navTitle: section.navTitle,
-      slug: section.slug,
-      order: section.order,
-    },
-  };
 }
 
 // Save a single section
