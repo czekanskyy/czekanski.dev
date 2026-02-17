@@ -3,7 +3,7 @@ import { getContent } from '@/lib/db';
 
 import './globals.css';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60; // ISR: regenerate layout every 60 seconds
 
 export async function generateMetadata(): Promise<Metadata> {
   const content = await getContent();

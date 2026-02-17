@@ -9,7 +9,7 @@ import Footer from './Components/Sections/Footer';
 import MouseSpotlight from './Components/MouseSpotlight';
 import { getContent } from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60; // ISR: regenerate page every 60 seconds
 
 export default async function Home() {
   const content = await getContent();
