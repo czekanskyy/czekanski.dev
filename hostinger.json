@@ -1,0 +1,11 @@
+{
+  "engine": "nodejs:18",
+  "buildScript": "pnpm install && pnpm build",
+  "startScript": "pnpm start",
+  "envVars": {
+    "NODE_ENV": "production",
+    "NEXTAUTH_URL": "https://czekanski.dev"
+  },
+  "staticDirs": ["public"],
+  "buildDir": ".next"
+}

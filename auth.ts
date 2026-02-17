@@ -1,7 +1,8 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+// @ts-ignore
 import bcrypt from 'bcryptjs';
-import { ADMIN_CREDENTIALS } from './credentials.local';
+import { prisma } from '@/lib/prisma';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -16,56 +17,42 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
-        // Get admin credentials from local config file
-        const adminEmail = ADMIN_CREDENTIALS.email;
-        const adminPasswordHash = ADMIN_CREDENTIALS.passwordHash;
-        const adminName = ADMIN_CREDENTIALS.name;
-
-        if (!adminEmail || !adminPasswordHash) {
-          console.error('CRITICAL: Admin credentials not found in credentials.local.ts');
-          return null;
-        }
-
-        // Check if email matches
-        if (credentials.email !== adminEmail) {
-          return null;
-        }
-
-        // Verify password
         try {
-          const isValid = await bcrypt.compare(credentials.password as string, adminPasswordHash);
+          // Look up user in database
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email as string },
+          });
+
+          if (!user) {
+            return null;
+          }
+
+          // Verify password
+          const isValid = await bcrypt.compare(credentials.password as string, user.passwordHash);
 
           if (!isValid) {
             return null;
           }
 
-          // Return user object (will be stored in session)
           return {
-            id: '1',
-            email: adminEmail,
-            name: adminName,
+            id: user.id,
+            email: user.email,
+            name: user.name,
           };
         } catch (error) {
-          console.error('Password verification error:', error);
+          console.error('Auth error:', error);
           return null;
         }
       },
     }),
   ],
+  // ...
   pages: {
     signIn: '/admin/login',
   },
   callbacks: {
-    async authorized({ request, auth }) {
-      const isLoggedIn = !!auth?.user;
-      const isOnAdminPage = request.nextUrl.pathname.startsWith('/admin');
-      const isOnLoginPage = request.nextUrl.pathname === '/admin/login';
-
-      if (isOnAdminPage && !isOnLoginPage) {
-        return isLoggedIn; // Return true if logged in, false triggers redirect to signIn page
-      }
-
-      return true; // Allow all other pages
+    async authorized({ auth }) {
+      return !!auth;
     },
   },
   session: {

@@ -1,6 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Loader2, Save, Plus, Trash2, Upload, FileText } from 'lucide-react';
+
+import SectionSettings, { SectionMetadata } from './SectionSettings';
 
 interface SocialLink {
   platform: string;
@@ -9,10 +18,12 @@ interface SocialLink {
 }
 
 interface ContactData {
-  title: string;
-  subtitle: string;
+  title: string; // Deprecated: managed by SectionSettings
+  subtitle: string; // Deprecated: managed by SectionSettings
   email: string;
   socials: SocialLink[];
+  resumeUrl?: string;
+  _meta?: any;
 }
 
 interface ContactEditorProps {
@@ -26,7 +37,15 @@ export default function ContactEditor({ initialData, onSave }: ContactEditorProp
     subtitle: '',
     email: '',
     socials: [],
+    resumeUrl: '',
   });
+
+  const [metadata, setMetadata] = useState<SectionMetadata>({
+    title: '',
+    navTitle: '',
+    slug: '',
+  });
+
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -36,7 +55,16 @@ export default function ContactEditor({ initialData, onSave }: ContactEditorProp
         subtitle: initialData.subtitle || '',
         email: initialData.email || '',
         socials: initialData.socials || [],
+        resumeUrl: initialData.resumeUrl || '',
       });
+
+      if (initialData._meta) {
+        setMetadata({
+          title: initialData._meta.title || 'Contact',
+          navTitle: initialData._meta.navTitle || 'Contact',
+          slug: initialData._meta.slug || 'contact',
+        });
+      }
     }
   }, [initialData]);
 
@@ -44,7 +72,14 @@ export default function ContactEditor({ initialData, onSave }: ContactEditorProp
     e.preventDefault();
     setSaving(true);
     try {
-      await onSave(formData);
+      const dataToSave = {
+        ...formData,
+        _meta: {
+          ...metadata,
+          order: initialData?._meta?.order ?? 0,
+        },
+      };
+      await onSave(dataToSave);
     } finally {
       setSaving(false);
     }
@@ -53,7 +88,7 @@ export default function ContactEditor({ initialData, onSave }: ContactEditorProp
   const addSocial = () => {
     setFormData({
       ...formData,
-      socials: [...formData.socials, { platform: '', url: '' }]
+      socials: [...formData.socials, { platform: '', url: '' }],
     });
   };
 
@@ -69,98 +104,142 @@ export default function ContactEditor({ initialData, onSave }: ContactEditorProp
     setFormData({ ...formData, socials: newSocials });
   };
 
+  const [uploadingResume, setUploadingResume] = useState(false);
+
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') return;
+    setUploadingResume(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      if (res.ok) {
+        const { url } = await res.json();
+        setFormData(prev => ({ ...prev, resumeUrl: url }));
+      }
+    } finally {
+      setUploadingResume(false);
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-6'>
-      <h2 className='text-2xl font-bold text-white'>Contact Section</h2>
-
-      {/* Title Input */}
-      <div className='flex flex-col gap-2'>
-        <label className='text-white text-sm font-bold'>Section Title</label>
-        <input
-          type='text'
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          className='bg-neutral-800 border border-neutral-700 rounded p-3 text-white focus:border-blue-400 focus:outline-none transition-colors'
-          placeholder='e.g., Get in Touch'
-          required
-        />
+    <form onSubmit={handleSubmit} className='space-y-6'>
+      <div>
+        <h2 className='text-2xl font-bold text-foreground'>Contact Section</h2>
+        <p className='text-sm text-muted-foreground mt-1'>Configure your contact information and social links.</p>
       </div>
 
-      {/* Subtitle Input */}
-      <div className='flex flex-col gap-2'>
-        <label className='text-white text-sm font-bold'>Subtitle</label>
-        <textarea
-          value={formData.subtitle}
-          onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-          className='bg-neutral-800 border border-neutral-700 rounded p-3 text-white focus:border-blue-400 focus:outline-none transition-colors min-h-[80px]'
-          placeholder='Brief description...'
-        />
-      </div>
+      <SectionSettings metadata={metadata} onChange={setMetadata} />
 
-      {/* Email Input */}
-      <div className='flex flex-col gap-2'>
-        <label className='text-white text-sm font-bold'>Contact Email</label>
-        <input
-          type='email'
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          className='bg-neutral-800 border border-neutral-700 rounded p-3 text-white focus:border-blue-400 focus:outline-none transition-colors'
-          placeholder='your@email.com'
-          required
-        />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className='text-lg'>Content</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className='space-y-2'>
+            <Label htmlFor='contact-email'>Contact Email</Label>
+            <Input
+              id='contact-email'
+              type='email'
+              value={formData.email}
+              onChange={e => setFormData({ ...formData, email: e.target.value })}
+              placeholder='your@email.com'
+              required
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Social Links */}
-      <div className='flex flex-col gap-4'>
-        <div className='flex justify-between items-center'>
-          <label className='text-white text-sm font-bold'>Social Media Links</label>
-          <button
-            type='button'
-            onClick={addSocial}
-            className='text-blue-400 hover:text-blue-300 text-sm font-bold'
-          >
-            + Add Link
-          </button>
-        </div>
-
-        {formData.socials.map((social, index) => (
-          <div key={index} className='flex gap-4 items-start bg-neutral-800/50 p-4 rounded border border-neutral-700'>
-            <div className='flex-1 flex flex-col gap-2'>
-              <input
-                type='text'
-                value={social.platform}
-                onChange={(e) => updateSocial(index, 'platform', e.target.value)}
-                className='bg-neutral-800 border border-neutral-600 rounded p-2 text-white text-sm'
-                placeholder='Platform (e.g., GitHub, LinkedIn)'
-              />
-              <input
-                type='url'
-                value={social.url}
-                onChange={(e) => updateSocial(index, 'url', e.target.value)}
-                className='bg-neutral-800 border border-neutral-600 rounded p-2 text-white text-sm'
-                placeholder='URL (https://...)'
-              />
+      <Card>
+        <CardHeader>
+          <div className='flex items-center justify-between'>
+            <div>
+              <CardTitle className='text-lg'>Social Links</CardTitle>
+              <CardDescription>Add your social media profiles.</CardDescription>
             </div>
-            <button
-              type='button'
-              onClick={() => removeSocial(index)}
-              className='text-red-400 hover:text-red-300 p-2'
-              title='Remove link'
-            >
-              ✕
-            </button>
+            <Button type='button' variant='outline' size='sm' onClick={addSocial}>
+              <Plus className='h-4 w-4 mr-2' />
+              Add Link
+            </Button>
           </div>
-        ))}
-      </div>
+        </CardHeader>
+        <CardContent className='space-y-3'>
+          {formData.socials.length === 0 && <p className='text-sm text-muted-foreground text-center py-4'>No social links added yet.</p>}
+          {formData.socials.map((social, index) => (
+            <div key={index} className='flex gap-3 items-start p-3 rounded-md border border-border bg-muted/30'>
+              <div className='flex-1 space-y-2'>
+                <Input
+                  value={social.platform}
+                  onChange={e => updateSocial(index, 'platform', e.target.value)}
+                  placeholder='Platform (e.g., GitHub, LinkedIn)'
+                />
+                <Input type='url' value={social.url} onChange={e => updateSocial(index, 'url', e.target.value)} placeholder='URL (https://...)' />
+              </div>
+              <Button
+                type='button'
+                variant='ghost'
+                size='sm'
+                onClick={() => removeSocial(index)}
+                className='text-muted-foreground hover:text-destructive h-8 w-8 p-0 shrink-0 mt-1'
+              >
+                <Trash2 className='h-4 w-4' />
+              </Button>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
-      {/* Save Button */}
-      <button
-        type='submit'
-        disabled={saving}
-        className='bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4'
-      >
-        {saving ? 'Saving...' : 'Save Changes'}
-      </button>
+      {/* Resume / CV */}
+      <Card>
+        <CardHeader>
+          <CardTitle className='text-lg'>Resume / CV</CardTitle>
+          <CardDescription>Upload a PDF file. The filename (without extension) will be shown as the download button label.</CardDescription>
+        </CardHeader>
+        <CardContent className='space-y-3'>
+          {formData.resumeUrl && (
+            <div className='flex items-center gap-3 p-3 rounded-md border border-border bg-muted/30'>
+              <FileText className='h-5 w-5 text-muted-foreground shrink-0' />
+              <span className='text-sm text-foreground flex-1 truncate'>{formData.resumeUrl.split('/').pop()}</span>
+              <Button
+                type='button'
+                variant='ghost'
+                size='sm'
+                onClick={() => setFormData({ ...formData, resumeUrl: '' })}
+                className='text-muted-foreground hover:text-destructive h-8 w-8 p-0 shrink-0'
+              >
+                <Trash2 className='h-4 w-4' />
+              </Button>
+            </div>
+          )}
+          <Button type='button' variant='outline' size='sm' asChild className='cursor-pointer'>
+            <label>
+              <input type='file' accept='application/pdf' onChange={handleResumeUpload} disabled={uploadingResume} className='hidden' />
+              <Upload className='h-4 w-4 mr-2' />
+              {uploadingResume ? 'Uploading...' : formData.resumeUrl ? 'Replace PDF' : 'Upload PDF'}
+            </label>
+          </Button>
+          <p className='text-xs text-muted-foreground'>Supported: PDF only</p>
+        </CardContent>
+      </Card>
+
+      <div className='flex justify-end'>
+        <Button type='submit' disabled={saving}>
+          {saving ? (
+            <>
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className='mr-2 h-4 w-4' />
+              Save Changes
+            </>
+          )}
+        </Button>
+      </div>
     </form>
   );
 }

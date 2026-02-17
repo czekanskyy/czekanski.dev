@@ -2,20 +2,25 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { Upload, AlertCircle } from 'lucide-react';
 
 interface ImageUploadProps {
   currentImage?: string;
   onImageChange: (url: string) => void;
   label?: string;
   maxSizeMB?: number;
+  acceptVideo?: boolean;
 }
 
-export default function ImageUpload({ 
-  currentImage, 
-  onImageChange, 
-  label = 'Image',
-  maxSizeMB = 5 
-}: ImageUploadProps) {
+function isVideoUrl(url: string): boolean {
+  return /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
+}
+
+export default function ImageUpload({ currentImage, onImageChange, label = 'Image', maxSizeMB, acceptVideo = false }: ImageUploadProps) {
+  const effectiveMaxSize = maxSizeMB ?? (acceptVideo ? 50 : 5);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
@@ -24,15 +29,16 @@ export default function ImageUpload({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file size
-    if (file.size > maxSizeMB * 1024 * 1024) {
-      setError(`File size must be less than ${maxSizeMB}MB`);
+    if (file.size > effectiveMaxSize * 1024 * 1024) {
+      setError(`File size must be less than ${effectiveMaxSize}MB`);
       return;
     }
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setError('File must be an image');
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+
+    if (!isImage && !(acceptVideo && isVideo)) {
+      setError(acceptVideo ? 'File must be an image or video' : 'File must be an image');
       return;
     }
 
@@ -46,15 +52,13 @@ export default function ImageUpload({
 
       const xhr = new XMLHttpRequest();
 
-      // Track upload progress
-      xhr.upload.addEventListener('progress', (e) => {
+      xhr.upload.addEventListener('progress', e => {
         if (e.lengthComputable) {
           const percentComplete = (e.loaded / e.total) * 100;
           setProgress(Math.round(percentComplete));
         }
       });
 
-      // Handle completion
       xhr.addEventListener('load', () => {
         if (xhr.status === 200) {
           const response = JSON.parse(xhr.responseText);
@@ -81,58 +85,52 @@ export default function ImageUpload({
   };
 
   return (
-    <div className='flex flex-col gap-3'>
-      <label className='text-white text-sm font-bold'>{label}</label>
-      
-      {/* Current Image Preview */}
+    <div className='space-y-3'>
+      <Label>{label}</Label>
+
+      {/* Current Preview */}
       {currentImage && (
-        <div className='relative w-full h-48 bg-neutral-800 rounded overflow-hidden'>
-          <Image
-            src={currentImage}
-            alt={label}
-            fill
-            className='object-contain'
-            unoptimized
-          />
+        <div className='relative w-full h-48 bg-muted rounded-md overflow-hidden'>
+          {isVideoUrl(currentImage) ? (
+            <video src={currentImage} controls muted className='w-full h-full object-contain' />
+          ) : (
+            <Image src={currentImage} alt={label} fill className='object-contain' unoptimized />
+          )}
         </div>
       )}
 
       {/* Upload Button */}
       <div className='flex items-center gap-3'>
-        <label className='bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded cursor-pointer transition-colors'>
-          <input
-            type='file'
-            accept='image/*'
-            onChange={handleFileSelect}
-            disabled={uploading}
-            className='hidden'
-          />
-          {uploading ? 'Uploading...' : 'Choose Image'}
-        </label>
-        
-        {currentImage && (
-          <span className='text-neutral-400 text-sm'>or select new image</span>
-        )}
+        <Button variant='outline' size='sm' asChild className='cursor-pointer'>
+          <label>
+            <input
+              type='file'
+              accept={acceptVideo ? 'image/*,video/mp4,video/webm,video/ogg' : 'image/*'}
+              onChange={handleFileSelect}
+              disabled={uploading}
+              className='hidden'
+            />
+            <Upload className='h-4 w-4 mr-2' />
+            {uploading ? 'Uploading...' : acceptVideo ? 'Choose File' : 'Choose Image'}
+          </label>
+        </Button>
+        {currentImage && <span className='text-sm text-muted-foreground'>or select a new file</span>}
       </div>
 
       {/* Progress Bar */}
-      {uploading && (
-        <div className='w-full bg-neutral-800 rounded h-2 overflow-hidden'>
-          <div
-            className='bg-blue-600 h-full transition-all duration-300'
-            style={{ width: `${progress}%` }}
-          />
+      {uploading && <Progress value={progress} className='h-2' />}
+
+      {/* Error */}
+      {error && (
+        <div className='flex items-center gap-2 text-destructive text-sm'>
+          <AlertCircle className='h-4 w-4' />
+          {error}
         </div>
       )}
 
-      {/* Error Message */}
-      {error && (
-        <p className='text-red-400 text-sm'>{error}</p>
-      )}
-
-      {/* File Info */}
-      <p className='text-neutral-500 text-xs'>
-        Max size: {maxSizeMB}MB. Supported: JPG, PNG, GIF, WebP
+      {/* Info */}
+      <p className='text-xs text-muted-foreground'>
+        Max size: {effectiveMaxSize}MB. Supported: JPG, PNG, GIF, WebP{acceptVideo ? ', MP4, WebM, OGG' : ''}
       </p>
     </div>
   );

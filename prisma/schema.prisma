@@ -1,0 +1,37 @@
+datasource db {
+  provider = "mysql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Section {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  title     String?  // General title for dashboard
+  navTitle  String?  // Text for navbar link
+  slug      String?  @unique // URL slug / ID for scrolling
+  order     Int      @default(0)
+  data      Json
+  updatedAt DateTime @updatedAt
+}
+
+model Upload {
+  id        String   @id @default(cuid())
+  filename  String
+  path      String
+  mimeType  String?
+  size      Int?
+  createdAt DateTime @default(now())
+}

@@ -1,8 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Loader2, Save, X, Plus, Trash2, ChevronDown, ChevronUp, ExternalLink, Github, GripVertical } from 'lucide-react';
 import ImageUpload from './ImageUpload';
-import QuillEditor from './QuillEditor';
+
+import SectionSettings, { SectionMetadata } from './SectionSettings';
+
+import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, DraggableProvided, DraggableStateSnapshot } from '@hello-pangea/dnd';
 
 interface Project {
   title: string;
@@ -14,9 +25,10 @@ interface Project {
 }
 
 interface ProjectsData {
-  title: string;
-  subtitle: string;
+  title: string; // Keeping for backward compatibility but unused in UI
+  subtitle: string; // Keeping for backward compatibility but unused in UI
   items: Project[];
+  _meta?: any;
 }
 
 interface ProjectsEditorProps {
@@ -30,6 +42,13 @@ export default function ProjectsEditor({ initialData, onSave }: ProjectsEditorPr
     subtitle: '',
     items: [],
   });
+
+  const [metadata, setMetadata] = useState<SectionMetadata>({
+    title: '',
+    navTitle: '',
+    slug: '',
+  });
+
   const [saving, setSaving] = useState(false);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
@@ -40,6 +59,14 @@ export default function ProjectsEditor({ initialData, onSave }: ProjectsEditorPr
         subtitle: initialData.subtitle || '',
         items: initialData.items || [],
       });
+
+      if (initialData._meta) {
+        setMetadata({
+          title: initialData._meta.title || 'Projects',
+          navTitle: initialData._meta.navTitle || 'Projects',
+          slug: initialData._meta.slug || 'projects',
+        });
+      }
     }
   }, [initialData]);
 
@@ -47,23 +74,24 @@ export default function ProjectsEditor({ initialData, onSave }: ProjectsEditorPr
     e.preventDefault();
     setSaving(true);
     try {
-      await onSave(formData);
+      const dataToSave = {
+        ...formData,
+        _meta: {
+          ...metadata,
+          order: initialData?._meta?.order ?? 0,
+        },
+      };
+      await onSave(dataToSave);
     } finally {
       setSaving(false);
     }
   };
 
   const addProject = () => {
-    const newProject: Project = {
-      title: 'New Project',
-      description: '',
-      tags: [],
-    };
-    setFormData({
-      ...formData,
-      items: [newProject, ...formData.items],
-    });
-    setExpandedIndex(0); // Expand the new project
+    const newProject: Project = { title: 'New Project', description: '', tags: [] };
+    // Add to top (Featured)
+    setFormData({ ...formData, items: [newProject, ...formData.items] });
+    setExpandedIndex(0);
   };
 
   const removeProject = (index: number) => {
@@ -96,185 +124,224 @@ export default function ProjectsEditor({ initialData, onSave }: ProjectsEditorPr
     setFormData({ ...formData, items: newItems });
   };
 
+  const onDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
+
+    if (sourceIndex === destinationIndex) return;
+
+    const newItems = Array.from(formData.items);
+    const [reorderedItem] = newItems.splice(sourceIndex, 1);
+    newItems.splice(destinationIndex, 0, reorderedItem);
+
+    setFormData({ ...formData, items: newItems });
+    // Adjust expanded index if necessary
+    if (expandedIndex !== null) {
+      if (expandedIndex === sourceIndex) {
+        setExpandedIndex(destinationIndex);
+      } else if (expandedIndex === destinationIndex) {
+        // Logic complicated for swapping around, simplest is to close or keep if not involved
+        // If moved item was expanded -> destinationIndex
+        // If expanded item was shifted -> adjust
+        // For simplicity, let's close it to avoid bugs or keep simple logic
+        setExpandedIndex(null);
+      }
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-6'>
-      <h2 className='text-2xl font-bold text-white'>Projects Section</h2>
-
-      {/* Title Input */}
-      <div className='flex flex-col gap-2'>
-        <label className='text-white text-sm font-bold'>Section Title</label>
-        <input
-          type='text'
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          className='bg-neutral-800 border border-neutral-700 rounded p-3 text-white focus:border-blue-400 focus:outline-none transition-colors'
-          placeholder='e.g., My Projects'
-          required
-        />
+    <form onSubmit={handleSubmit} className='space-y-6'>
+      <div>
+        <h2 className='text-2xl font-bold text-foreground'>Projects Section</h2>
+        <p className='text-sm text-muted-foreground mt-1'>Manage your portfolio projects. The first project in the list will be highlighted as 'Featured'.</p>
       </div>
 
-      {/* Subtitle Input */}
-      <div className='flex flex-col gap-2'>
-        <label className='text-white text-sm font-bold'>Subtitle</label>
-        <textarea
-          value={formData.subtitle}
-          onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-          className='bg-neutral-800 border border-neutral-700 rounded p-3 text-white focus:border-blue-400 focus:outline-none transition-colors min-h-[80px]'
-          placeholder='Brief description...'
-        />
-      </div>
+      <SectionSettings metadata={metadata} onChange={setMetadata} />
 
-      {/* Projects List */}
-      <div className='flex flex-col gap-4'>
+      {/* Projects List with Drag & Drop */}
+      <div className='space-y-4'>
         <div className='flex justify-between items-center'>
-          <label className='text-white text-sm font-bold'>Projects</label>
-          <button
-            type='button'
-            onClick={addProject}
-            className='bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-bold text-sm'
-          >
-            + Add Project
-          </button>
+          <h3 className='text-lg font-semibold text-foreground'>Projects ({formData.items.length})</h3>
+          <Button type='button' variant='outline' size='sm' onClick={addProject} className='text-white'>
+            <Plus className='h-4 w-4 mr-2' />
+            Add Project
+          </Button>
         </div>
 
-        {formData.items.map((project, index) => (
-          <div key={index} className='bg-neutral-800/50 border border-neutral-700 rounded overflow-hidden'>
-            {/* Project Header (Click to Expand) */}
-            <div 
-              className='flex justify-between items-center p-4 cursor-pointer hover:bg-neutral-800 transition-colors'
-              onClick={() => setExpandedIndex(expandedIndex === index ? null : index)}
-            >
-              <h3 className='text-white font-bold'>{project.title || 'Untitled Project'}</h3>
-              <div className='flex items-center gap-3'>
-                <button
-                  type='button'
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeProject(index);
-                  }}
-                  className='text-red-400 hover:text-red-300 text-sm'
-                >
-                  Delete
-                </button>
-                <span className='text-neutral-400'>
-                  {expandedIndex === index ? '▲' : '▼'}
-                </span>
-              </div>
-            </div>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId='projects-list'>
+            {(provided: DroppableProvided) => (
+              <div {...provided.droppableProps} ref={provided.innerRef} className='space-y-2'>
+                {formData.items.map((project, index) => (
+                  <Draggable key={index} draggableId={`project-${index}`} index={index}>
+                    {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
+                      <div ref={provided.innerRef} {...provided.draggableProps} style={provided.draggableProps.style}>
+                        <Card className={`${snapshot.isDragging ? 'opacity-50 ring-2 ring-primary z-50' : ''}`}>
+                          <Collapsible open={expandedIndex === index} onOpenChange={open => setExpandedIndex(open ? index : null)}>
+                            <div className='flex items-center p-4'>
+                              <div {...provided.dragHandleProps} className='mr-4 cursor-grab hover:text-foreground text-muted-foreground'>
+                                <GripVertical className='h-5 w-5' />
+                              </div>
+                              <CollapsibleTrigger asChild className='flex-1'>
+                                <div className='flex items-center justify-between cursor-pointer'>
+                                  <div className='flex items-center gap-3'>
+                                    <div className='flex flex-col items-start gap-1'>
+                                      <CardTitle className='text-base'>{project.title || 'Untitled Project'}</CardTitle>
+                                      {index === 0 && (
+                                        <Badge variant='default' className='bg-blue-600 hover:bg-blue-700 text-xs'>
+                                          Featured
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {project.tags.length > 0 && (
+                                      <span className='text-xs text-muted-foreground hidden sm:inline-block'>
+                                        {project.tags.length} tag{project.tags.length !== 1 ? 's' : ''}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className='flex items-center gap-2'>
+                                    <Button
+                                      type='button'
+                                      variant='ghost'
+                                      size='sm'
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        removeProject(index);
+                                      }}
+                                      className='text-muted-foreground hover:text-destructive h-8 w-8 p-0'
+                                    >
+                                      <Trash2 className='h-4 w-4' />
+                                    </Button>
+                                    {expandedIndex === index ? (
+                                      <ChevronUp className='h-4 w-4 text-muted-foreground' />
+                                    ) : (
+                                      <ChevronDown className='h-4 w-4 text-muted-foreground' />
+                                    )}
+                                  </div>
+                                </div>
+                              </CollapsibleTrigger>
+                            </div>
 
-            {/* Expanded Content */}
-            {expandedIndex === index && (
-              <div className='p-4 border-t border-neutral-700 flex flex-col gap-4'>
-                {/* Project Title */}
-                <div className='flex flex-col gap-2'>
-                  <label className='text-white text-sm'>Project Title</label>
-                  <input
-                    type='text'
-                    value={project.title}
-                    onChange={(e) => updateProject(index, 'title', e.target.value)}
-                    className='bg-neutral-800 border border-neutral-600 rounded p-2 text-white'
-                  />
-                </div>
+                            <CollapsibleContent>
+                              <CardContent className='space-y-4 border-t border-border mt-2 pt-4'>
+                                <div className='space-y-2'>
+                                  <Label>Project Title</Label>
+                                  <Input value={project.title} onChange={e => updateProject(index, 'title', e.target.value)} />
+                                </div>
 
-                {/* Project Description (WYSIWYG) */}
-                <div className='flex flex-col gap-2'>
-                  <label className='text-white text-sm'>Description</label>
-                  <div className='bg-white rounded overflow-hidden text-black'>
-                    <QuillEditor
-                      value={project.description}
-                      onChange={(content) => updateProject(index, 'description', content)}
-                    />
-                  </div>
-                </div>
+                                <div className='space-y-2'>
+                                  <Label>Description</Label>
+                                  <Textarea
+                                    value={project.description}
+                                    onChange={e => updateProject(index, 'description', e.target.value)}
+                                    placeholder='Describe the project...'
+                                    rows={4}
+                                  />
+                                </div>
 
-                {/* Project Image */}
-                <ImageUpload
-                  currentImage={project.image}
-                  onImageChange={(url) => updateProject(index, 'image', url)}
-                  label='Project Image'
-                />
+                                <ImageUpload currentImage={project.image} onImageChange={url => updateProject(index, 'image', url)} label='Project Image' />
 
-                {/* Links */}
-                <div className='grid grid-cols-2 gap-4'>
-                  <div className='flex flex-col gap-2'>
-                    <label className='text-white text-sm'>Live Link</label>
-                    <input
-                      type='url'
-                      value={project.link || ''}
-                      onChange={(e) => updateProject(index, 'link', e.target.value)}
-                      className='bg-neutral-800 border border-neutral-600 rounded p-2 text-white'
-                      placeholder='https://...'
-                    />
-                  </div>
-                  <div className='flex flex-col gap-2'>
-                    <label className='text-white text-sm'>GitHub Link</label>
-                    <input
-                      type='url'
-                      value={project.github || ''}
-                      onChange={(e) => updateProject(index, 'github', e.target.value)}
-                      className='bg-neutral-800 border border-neutral-600 rounded p-2 text-white'
-                      placeholder='https://github.com/...'
-                    />
-                  </div>
-                </div>
+                                <div className='grid grid-cols-2 gap-4'>
+                                  <div className='space-y-2'>
+                                    <Label className='flex items-center gap-1.5'>
+                                      <ExternalLink className='h-3.5 w-3.5' /> Live Link
+                                    </Label>
+                                    <Input
+                                      type='url'
+                                      value={project.link || ''}
+                                      onChange={e => updateProject(index, 'link', e.target.value)}
+                                      placeholder='https://...'
+                                    />
+                                  </div>
+                                  <div className='space-y-2'>
+                                    <Label className='flex items-center gap-1.5'>
+                                      <Github className='h-3.5 w-3.5' /> GitHub Link
+                                    </Label>
+                                    <Input
+                                      type='url'
+                                      value={project.github || ''}
+                                      onChange={e => updateProject(index, 'github', e.target.value)}
+                                      placeholder='https://github.com/...'
+                                    />
+                                  </div>
+                                </div>
 
-                {/* Tags */}
-                <div className='flex flex-col gap-2'>
-                  <label className='text-white text-sm'>Technologies / Tags</label>
-                  <div className='flex flex-wrap gap-2'>
-                    {project.tags.map((tag, tagIndex) => (
-                      <div key={tagIndex} className='bg-blue-900/50 text-blue-200 px-2 py-1 rounded text-sm flex items-center gap-2'>
-                        <span>{tag}</span>
-                        <button
-                          type='button'
-                          onClick={() => removeTag(index, tagIndex)}
-                          className='hover:text-red-300'
-                        >
-                          ×
-                        </button>
+                                {/* Tags */}
+                                <div className='space-y-2'>
+                                  <Label>Technologies / Tags</Label>
+                                  <div className='flex flex-wrap gap-2'>
+                                    {project.tags.map((tag, tagIndex) => (
+                                      <Badge key={tagIndex} variant='secondary' className='gap-1 pr-1'>
+                                        {tag}
+                                        <button
+                                          type='button'
+                                          onClick={() => removeTag(index, tagIndex)}
+                                          className='ml-1 hover:text-destructive transition-colors rounded-full'
+                                        >
+                                          <X className='h-3 w-3' />
+                                        </button>
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                  <div className='flex gap-2'>
+                                    <Input
+                                      placeholder='Add tag...'
+                                      className='flex-1'
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          addTag(index, (e.target as HTMLInputElement).value);
+                                          (e.target as HTMLInputElement).value = '';
+                                        }
+                                      }}
+                                    />
+                                    <Button
+                                      type='button'
+                                      variant='outline'
+                                      size='sm'
+                                      onClick={e => {
+                                        const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                        addTag(index, input.value);
+                                        input.value = '';
+                                      }}
+                                    >
+                                      <Plus className='h-4 w-4 mr-1' />
+                                      Add
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        </Card>
                       </div>
-                    ))}
-                  </div>
-                  <div className='flex gap-2'>
-                    <input
-                      type='text'
-                      placeholder='Add tag...'
-                      className='bg-neutral-800 border border-neutral-600 rounded p-2 text-white text-sm flex-1'
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          addTag(index, (e.target as HTMLInputElement).value);
-                          (e.target as HTMLInputElement).value = '';
-                        }
-                      }}
-                    />
-                    <button
-                      type='button'
-                      onClick={(e) => {
-                        const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                        addTag(index, input.value);
-                        input.value = '';
-                      }}
-                      className='bg-neutral-700 hover:bg-neutral-600 text-white px-3 py-1 rounded text-sm'
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
               </div>
             )}
-          </div>
-        ))}
+          </Droppable>
+        </DragDropContext>
       </div>
 
-      {/* Save Button */}
-      <button
-        type='submit'
-        disabled={saving}
-        className='bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4'
-      >
-        {saving ? 'Saving...' : 'Save Changes'}
-      </button>
+      <div className='flex justify-end'>
+        <Button type='submit' disabled={saving}>
+          {saving ? (
+            <>
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className='mr-2 h-4 w-4' />
+              Save Changes
+            </>
+          )}
+        </Button>
+      </div>
     </form>
   );
 }

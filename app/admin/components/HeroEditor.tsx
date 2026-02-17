@@ -1,13 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Loader2, Save } from 'lucide-react';
 import ImageUpload from './ImageUpload';
 
 interface HeroData {
-  name: string;
-  title: string;
-  subtitle: string;
+  // Site-wide settings
+  pageTitle: string;
+  pageDescription: string;
+  favicon?: string;
+  backgroundDesktop?: string;
+  backgroundMobile?: string;
+  // Legacy fields kept for backward compatibility with frontend Hero component
+  name?: string;
+  title?: string;
+  subtitle?: string;
   image?: string;
+  _meta?: any;
 }
 
 interface HeroEditorProps {
@@ -17,20 +31,27 @@ interface HeroEditorProps {
 
 export default function HeroEditor({ initialData, onSave }: HeroEditorProps) {
   const [formData, setFormData] = useState<HeroData>({
-    name: '',
-    title: '',
-    subtitle: '',
-    image: '',
+    pageTitle: '',
+    pageDescription: '',
+    favicon: '',
+    backgroundDesktop: '',
+    backgroundMobile: '',
   });
+
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (initialData) {
       setFormData({
-        name: initialData.name || '',
-        title: initialData.title || '',
-        subtitle: initialData.subtitle || '',
-        image: initialData.image || '',
+        pageTitle: initialData.pageTitle || '',
+        pageDescription: initialData.pageDescription || '',
+        favicon: initialData.favicon || '',
+        backgroundDesktop: initialData.backgroundDesktop || initialData.image || '',
+        backgroundMobile: initialData.backgroundMobile || '',
+        // Preserve legacy fields
+        name: initialData.name,
+        title: initialData.title,
+        subtitle: initialData.subtitle,
       });
     }
   }, [initialData]);
@@ -39,69 +60,118 @@ export default function HeroEditor({ initialData, onSave }: HeroEditorProps) {
     e.preventDefault();
     setSaving(true);
     try {
-      await onSave(formData);
+      const dataToSave: HeroData = {
+        ...formData,
+        // Map desktop background to image for frontend compatibility
+        image: formData.backgroundDesktop,
+        _meta: {
+          title: 'Hero Section',
+          navTitle: 'Home',
+          slug: 'hero',
+          order: initialData?._meta?.order ?? 0,
+        },
+      };
+      await onSave(dataToSave);
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-6'>
-      <h2 className='text-2xl font-bold text-white'>Hero Section</h2>
-
-      {/* Name Input */}
-      <div className='flex flex-col gap-2'>
-        <label className='text-white text-sm font-bold'>Name</label>
-        <input
-          type='text'
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className='bg-neutral-800 border border-neutral-700 rounded p-3 text-white focus:border-blue-400 focus:outline-none transition-colors'
-          placeholder='e.g., Dominik Czekański'
-          required
-        />
+    <form onSubmit={handleSubmit} className='space-y-6'>
+      <div>
+        <h2 className='text-2xl font-bold text-foreground'>Site & Hero Settings</h2>
+        <p className='text-sm text-muted-foreground mt-1'>Configure page metadata and the hero section background.</p>
       </div>
 
-      {/* Title Input */}
-      <div className='flex flex-col gap-2'>
-        <label className='text-white text-sm font-bold'>Title</label>
-        <input
-          type='text'
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          className='bg-neutral-800 border border-neutral-700 rounded p-3 text-white focus:border-blue-400 focus:outline-none transition-colors'
-          placeholder='e.g., Full Stack Developer'
-          required
-        />
+      {/* SEO / Browser Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className='text-lg'>Page Metadata</CardTitle>
+          <CardDescription>These settings affect how your site appears in the browser tab and search results.</CardDescription>
+        </CardHeader>
+        <CardContent className='space-y-4'>
+          <div className='space-y-2'>
+            <Label htmlFor='page-title'>Page Title</Label>
+            <Input
+              id='page-title'
+              value={formData.pageTitle}
+              onChange={e => setFormData({ ...formData, pageTitle: e.target.value })}
+              placeholder='e.g., Dominik Czekański 👨🏻‍💻'
+            />
+            <p className='text-[0.8rem] text-muted-foreground'>Displayed in the browser tab.</p>
+          </div>
+
+          <div className='space-y-2'>
+            <Label htmlFor='page-description'>Page Description</Label>
+            <Textarea
+              id='page-description'
+              value={formData.pageDescription}
+              onChange={e => setFormData({ ...formData, pageDescription: e.target.value })}
+              placeholder="e.g., Hi, I'm Dominik and I sincerely welcome you to my website!"
+              rows={3}
+            />
+            <p className='text-[0.8rem] text-muted-foreground'>Used by search engines (Google, Bing) as page description.</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Favicon */}
+      <Card>
+        <CardHeader>
+          <CardTitle className='text-lg'>Favicon</CardTitle>
+          <CardDescription>The small icon displayed in the browser tab next to the page title.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ImageUpload currentImage={formData.favicon} onImageChange={url => setFormData({ ...formData, favicon: url })} label='Favicon' />
+        </CardContent>
+      </Card>
+
+      {/* Background Media */}
+      <Card>
+        <CardHeader>
+          <CardTitle className='text-lg'>Background Media</CardTitle>
+          <CardDescription>Upload separate backgrounds for desktop and mobile devices.</CardDescription>
+        </CardHeader>
+        <CardContent className='space-y-6'>
+          <div className='space-y-2'>
+            <Label>Desktop Background</Label>
+            <p className='text-[0.8rem] text-muted-foreground'>Displayed on screens wider than 768px.</p>
+            <ImageUpload
+              currentImage={formData.backgroundDesktop}
+              onImageChange={url => setFormData({ ...formData, backgroundDesktop: url })}
+              label='Desktop Image / Video'
+              acceptVideo
+            />
+          </div>
+          <div className='space-y-2'>
+            <Label>Mobile Background</Label>
+            <p className='text-[0.8rem] text-muted-foreground'>Displayed on screens up to 768px. If empty, the desktop background will be used.</p>
+            <ImageUpload
+              currentImage={formData.backgroundMobile}
+              onImageChange={url => setFormData({ ...formData, backgroundMobile: url })}
+              label='Mobile Image / Video'
+              acceptVideo
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className='flex justify-end'>
+        <Button type='submit' disabled={saving}>
+          {saving ? (
+            <>
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className='mr-2 h-4 w-4' />
+              Save Changes
+            </>
+          )}
+        </Button>
       </div>
-
-      {/* Subtitle Input */}
-      <div className='flex flex-col gap-2'>
-        <label className='text-white text-sm font-bold'>Subtitle</label>
-        <textarea
-          value={formData.subtitle}
-          onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-          className='bg-neutral-800 border border-neutral-700 rounded p-3 text-white focus:border-blue-400 focus:outline-none transition-colors min-h-[100px]'
-          placeholder='Short description or tagline...'
-          required
-        />
-      </div>
-
-      {/* Hero Image Upload */}
-      <ImageUpload
-        currentImage={formData.image}
-        onImageChange={(url) => setFormData({ ...formData, image: url })}
-        label='Hero Image'
-      />
-
-      {/* Save Button */}
-      <button
-        type='submit'
-        disabled={saving}
-        className='bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-      >
-        {saving ? 'Saving...' : 'Save Changes'}
-      </button>
     </form>
   );
 }

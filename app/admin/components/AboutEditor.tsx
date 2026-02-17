@@ -1,14 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Loader2, Save } from 'lucide-react';
 import ImageUpload from './ImageUpload';
 import QuillEditor from './QuillEditor';
 
+import SectionSettings, { SectionMetadata } from './SectionSettings';
+
 interface AboutData {
-  title: string;
+  // Content fields
+  title: string; // This is the visible title in the component "About Me"
   bio: string;
   profileImage?: string;
-  highlightedSkills?: string[];
+
+  // Metadata
+  _meta?: any; // To hold raw meta from DB if needed
 }
 
 interface AboutEditorProps {
@@ -17,14 +27,20 @@ interface AboutEditorProps {
 }
 
 export default function AboutEditor({ initialData, onSave }: AboutEditorProps) {
+  // Separate content data from metadata
   const [formData, setFormData] = useState<AboutData>({
     title: '',
     bio: '',
     profileImage: '',
-    highlightedSkills: [],
   });
+
+  const [metadata, setMetadata] = useState<SectionMetadata>({
+    title: '',
+    navTitle: '',
+    slug: '',
+  });
+
   const [saving, setSaving] = useState(false);
-  const [newSkill, setNewSkill] = useState('');
 
   useEffect(() => {
     if (initialData) {
@@ -32,8 +48,16 @@ export default function AboutEditor({ initialData, onSave }: AboutEditorProps) {
         title: initialData.title || '',
         bio: initialData.bio || '',
         profileImage: initialData.profileImage || '',
-        highlightedSkills: initialData.highlightedSkills || [],
       });
+
+      // Extract metadata from initialData._meta if available
+      if (initialData._meta) {
+        setMetadata({
+          title: initialData._meta.title || 'About',
+          navTitle: initialData._meta.navTitle || 'About',
+          slug: initialData._meta.slug || 'about',
+        });
+      }
     }
   }, [initialData]);
 
@@ -41,116 +65,72 @@ export default function AboutEditor({ initialData, onSave }: AboutEditorProps) {
     e.preventDefault();
     setSaving(true);
     try {
-      await onSave(formData);
+      // Combine data and metadata
+      const dataToSave = {
+        ...formData,
+        _meta: {
+          ...metadata,
+          order: initialData?._meta?.order ?? 0, // Preserve order
+        },
+      };
+      await onSave(dataToSave);
     } finally {
       setSaving(false);
     }
   };
 
-  const addSkill = () => {
-    if (newSkill.trim() && !formData.highlightedSkills?.includes(newSkill.trim())) {
-      setFormData({
-        ...formData,
-        highlightedSkills: [...(formData.highlightedSkills || []), newSkill.trim()],
-      });
-      setNewSkill('');
-    }
-  };
-
-  const removeSkill = (skill: string) => {
-    setFormData({
-      ...formData,
-      highlightedSkills: formData.highlightedSkills?.filter((s) => s !== skill),
-    });
-  };
-
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-6'>
-      <h2 className='text-2xl font-bold text-white'>About Section</h2>
-
-      {/* Title Input */}
-      <div className='flex flex-col gap-2'>
-        <label className='text-white text-sm font-bold'>Section Title</label>
-        <input
-          type='text'
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          className='bg-neutral-800 border border-neutral-700 rounded p-3 text-white focus:border-blue-400 focus:outline-none transition-colors'
-          placeholder='e.g., About Me'
-          required
-        />
+    <form onSubmit={handleSubmit} className='space-y-6'>
+      <div>
+        <h2 className='text-2xl font-bold text-foreground'>About Section</h2>
+        <p className='text-sm text-muted-foreground mt-1'>Edit your personal bio and profile information.</p>
       </div>
 
-      {/* Bio - WYSIWYG Editor */}
-      <div className='flex flex-col gap-2'>
-        <label className='text-white text-sm font-bold'>Bio</label>
-        <div className='bg-white rounded overflow-hidden text-black'>
-          <QuillEditor
-            value={formData.bio}
-            onChange={(content) => setFormData({ ...formData, bio: content })}
-            className='min-h-[200px]'
-          />
-        </div>
-      </div>
+      <SectionSettings metadata={metadata} onChange={setMetadata} />
 
-      {/* Profile Image Upload */}
-      <ImageUpload
-        currentImage={formData.profileImage}
-        onImageChange={(url) => setFormData({ ...formData, profileImage: url })}
-        label='Profile Image'
-      />
+      <Card>
+        <CardHeader>
+          <CardTitle className='text-lg'>Content</CardTitle>
+        </CardHeader>
+        <CardContent className='space-y-4'>
+          <div className='space-y-2'>
+            <Label htmlFor='about-title'>Section Headline (H2)</Label>
+            <Input id='about-title' value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder='e.g., About Me' />
+          </div>
 
-      {/* Highlighted Skills */}
-      <div className='flex flex-col gap-3'>
-        <label className='text-white text-sm font-bold'>Highlighted Skills (Optional)</label>
-        
-        {/* Skill List */}
-        <div className='flex flex-wrap gap-2'>
-          {formData.highlightedSkills?.map((skill) => (
-            <div
-              key={skill}
-              className='bg-blue-600 text-white px-3 py-1 rounded flex items-center gap-2'
-            >
-              <span>{skill}</span>
-              <button
-                type='button'
-                onClick={() => removeSkill(skill)}
-                className='hover:text-red-300 transition-colors'
-              >
-                ✕
-              </button>
+          <div className='space-y-2'>
+            <Label>Bio</Label>
+            <div className='bg-white rounded-md overflow-hidden text-black'>
+              <QuillEditor value={formData.bio} onChange={content => setFormData({ ...formData, bio: content })} />
             </div>
-          ))}
-        </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Add Skill Input */}
-        <div className='flex gap-2'>
-          <input
-            type='text'
-            value={newSkill}
-            onChange={(e) => setNewSkill(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
-            className='flex-1 bg-neutral-800 border border-neutral-700 rounded p-2 text-white focus:border-blue-400 focus:outline-none transition-colors'
-            placeholder='Add a skill...'
-          />
-          <button
-            type='button'
-            onClick={addSkill}
-            className='bg-neutral-700 hover:bg-neutral-600 text-white px-4 py-2 rounded transition-colors'
-          >
-            Add
-          </button>
-        </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className='text-lg'>Profile Image</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ImageUpload currentImage={formData.profileImage} onImageChange={url => setFormData({ ...formData, profileImage: url })} label='Profile Image' />
+        </CardContent>
+      </Card>
+
+      <div className='flex justify-end'>
+        <Button type='submit' disabled={saving}>
+          {saving ? (
+            <>
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className='mr-2 h-4 w-4' />
+              Save Changes
+            </>
+          )}
+        </Button>
       </div>
-
-      {/* Save Button */}
-      <button
-        type='submit'
-        disabled={saving}
-        className='bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-      >
-        {saving ? 'Saving...' : 'Save Changes'}
-      </button>
     </form>
   );
 }

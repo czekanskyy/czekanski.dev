@@ -1,27 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
-import { getCurrentUser } from '@/lib/auth';
+import { auth } from '@/auth';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    // Check authentication via next-auth
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
 
     if (!file) {
-      return NextResponse.json(
-        { error: 'No file provided' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
     // Convert file to buffer
@@ -32,7 +27,7 @@ export async function POST(request: NextRequest) {
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
     try {
       await mkdir(uploadsDir, { recursive: true });
-    } catch (error) {
+    } catch {
       // Directory already exists, ignore
     }
 
@@ -41,18 +36,23 @@ export async function POST(request: NextRequest) {
     const filename = `${timestamp}-${file.name}`;
     const filepath = path.join(uploadsDir, filename);
 
-    // Write file
+    // Write file to disk
     await writeFile(filepath, buffer);
 
-    // Return public URL
+    // Record upload in database
     const publicUrl = `/uploads/${filename}`;
+    await prisma.upload.create({
+      data: {
+        filename: file.name,
+        path: publicUrl,
+        mimeType: file.type || null,
+        size: buffer.length,
+      },
+    });
 
     return NextResponse.json({ url: publicUrl });
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

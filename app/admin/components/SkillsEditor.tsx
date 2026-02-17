@@ -1,21 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Loader2, Save, X, Plus, Trash2 } from 'lucide-react';
 
-interface Skill {
-  name: string;
-  icon?: string; // Optional icon class or url
-}
+import SectionSettings, { SectionMetadata } from './SectionSettings';
 
 interface SkillCategory {
   category: string;
-  items: string[]; // Array of skill names
+  items: string[];
 }
 
 interface SkillsData {
-  title: string;
-  subtitle: string;
+  title: string; // Deprecated: managed by SectionSettings
+  subtitle: string; // Deprecated: managed by SectionSettings
   categories: SkillCategory[];
+  _meta?: any;
 }
 
 interface SkillsEditorProps {
@@ -29,9 +35,14 @@ export default function SkillsEditor({ initialData, onSave }: SkillsEditorProps)
     subtitle: '',
     categories: [],
   });
+
+  const [metadata, setMetadata] = useState<SectionMetadata>({
+    title: '',
+    navTitle: '',
+    slug: '',
+  });
+
   const [saving, setSaving] = useState(false);
-  
-  // State for new category
   const [newCategoryName, setNewCategoryName] = useState('');
 
   useEffect(() => {
@@ -41,6 +52,14 @@ export default function SkillsEditor({ initialData, onSave }: SkillsEditorProps)
         subtitle: initialData.subtitle || '',
         categories: initialData.categories || [],
       });
+
+      if (initialData._meta) {
+        setMetadata({
+          title: initialData._meta.title || 'Skills',
+          navTitle: initialData._meta.navTitle || 'Skills',
+          slug: initialData._meta.slug || 'skills',
+        });
+      }
     }
   }, [initialData]);
 
@@ -48,7 +67,14 @@ export default function SkillsEditor({ initialData, onSave }: SkillsEditorProps)
     e.preventDefault();
     setSaving(true);
     try {
-      await onSave(formData);
+      const dataToSave = {
+        ...formData,
+        _meta: {
+          ...metadata,
+          order: initialData?._meta?.order ?? 0,
+        },
+      };
+      await onSave(dataToSave);
     } finally {
       setSaving(false);
     }
@@ -58,10 +84,7 @@ export default function SkillsEditor({ initialData, onSave }: SkillsEditorProps)
     if (newCategoryName.trim()) {
       setFormData({
         ...formData,
-        categories: [
-          ...formData.categories,
-          { category: newCategoryName.trim(), items: [] }
-        ]
+        categories: [...formData.categories, { category: newCategoryName.trim(), items: [] }],
       });
       setNewCategoryName('');
     }
@@ -95,129 +118,122 @@ export default function SkillsEditor({ initialData, onSave }: SkillsEditorProps)
   };
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-6'>
-      <h2 className='text-2xl font-bold text-white'>Skills Section</h2>
-
-      {/* Title Input */}
-      <div className='flex flex-col gap-2'>
-        <label className='text-white text-sm font-bold'>Section Title</label>
-        <input
-          type='text'
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          className='bg-neutral-800 border border-neutral-700 rounded p-3 text-white focus:border-blue-400 focus:outline-none transition-colors'
-          placeholder='e.g., Technical Skills'
-          required
-        />
+    <form onSubmit={handleSubmit} className='space-y-6'>
+      <div>
+        <h2 className='text-2xl font-bold text-foreground'>Skills Section</h2>
+        <p className='text-sm text-muted-foreground mt-1'>Manage your skill categories and technologies.</p>
       </div>
 
-      {/* Subtitle Input */}
-      <div className='flex flex-col gap-2'>
-        <label className='text-white text-sm font-bold'>Subtitle</label>
-        <textarea
-          value={formData.subtitle}
-          onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-          className='bg-neutral-800 border border-neutral-700 rounded p-3 text-white focus:border-blue-400 focus:outline-none transition-colors min-h-[80px]'
-          placeholder='Brief description...'
-        />
-      </div>
+      <SectionSettings metadata={metadata} onChange={setMetadata} />
 
-      {/* Categories Management */}
-      <div className='flex flex-col gap-4'>
-        <label className='text-white text-sm font-bold'>Skill Categories</label>
-        
+      {/* Skill Categories */}
+      <div className='space-y-4'>
+        <div className='flex justify-between items-center'>
+          <h3 className='text-lg font-semibold text-foreground'>Categories</h3>
+        </div>
+
         {formData.categories.map((category, catIndex) => (
-          <div key={catIndex} className='bg-neutral-800/50 border border-neutral-700 rounded p-4 flex flex-col gap-4'>
-            <div className='flex justify-between items-center gap-4'>
-              <input
-                type='text'
-                value={category.category}
-                onChange={(e) => updateCategoryName(catIndex, e.target.value)}
-                className='bg-neutral-800 border border-neutral-600 rounded p-2 text-white flex-1 font-bold'
-                placeholder='Category Name'
-              />
-              <button
-                type='button'
-                onClick={() => removeCategory(catIndex)}
-                className='text-red-400 hover:text-red-300 text-sm'
-              >
-                Remove Category
-              </button>
-            </div>
-
-            {/* Skills in Category */}
-            <div className='flex flex-wrap gap-2'>
-              {category.items.map((skill, skillIndex) => (
-                <div key={skillIndex} className='bg-neutral-700 text-white px-3 py-1 rounded-full flex items-center gap-2 text-sm'>
-                  <span>{skill}</span>
-                  <button
-                    type='button'
-                    onClick={() => removeSkillFromCategory(catIndex, skillIndex)}
-                    className='hover:text-red-300'
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Add Skill Input */}
-            <div className='flex gap-2'>
-              <input
-                type='text'
-                placeholder='Add skill...'
-                className='bg-neutral-800 border border-neutral-600 rounded p-2 text-white text-sm flex-1'
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addSkillToCategory(catIndex, (e.target as HTMLInputElement).value);
-                    (e.target as HTMLInputElement).value = '';
-                  }
-                }}
-              />
-              <button
-                type='button'
-                onClick={(e) => {
-                  const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
-                  addSkillToCategory(catIndex, input.value);
-                  input.value = '';
-                }}
-                className='bg-neutral-700 hover:bg-neutral-600 text-white px-3 py-1 rounded text-sm'
-              >
-                Add
-              </button>
-            </div>
-          </div>
+          <Card key={catIndex}>
+            <CardHeader className='pb-3'>
+              <div className='flex items-center gap-3'>
+                <Input
+                  value={category.category}
+                  onChange={e => updateCategoryName(catIndex, e.target.value)}
+                  className='font-semibold flex-1'
+                  placeholder='Category Name'
+                />
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='sm'
+                  onClick={() => removeCategory(catIndex)}
+                  className='text-muted-foreground hover:text-destructive shrink-0'
+                >
+                  <Trash2 className='h-4 w-4' />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className='space-y-3'>
+              <div className='flex flex-wrap gap-2'>
+                {category.items.map((skill, skillIndex) => (
+                  <Badge key={skillIndex} variant='secondary' className='gap-1 pr-1'>
+                    {skill}
+                    <button
+                      type='button'
+                      onClick={() => removeSkillFromCategory(catIndex, skillIndex)}
+                      className='ml-1 hover:text-destructive transition-colors rounded-full'
+                    >
+                      <X className='h-3 w-3' />
+                    </button>
+                  </Badge>
+                ))}
+                {category.items.length === 0 && <p className='text-sm text-muted-foreground'>No skills added yet.</p>}
+              </div>
+              <div className='flex gap-2'>
+                <Input
+                  placeholder='Add skill...'
+                  className='flex-1'
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addSkillToCategory(catIndex, (e.target as HTMLInputElement).value);
+                      (e.target as HTMLInputElement).value = '';
+                    }
+                  }}
+                />
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={e => {
+                    const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                    addSkillToCategory(catIndex, input.value);
+                    input.value = '';
+                  }}
+                >
+                  <Plus className='h-4 w-4 mr-1' />
+                  Add
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ))}
 
-        {/* Add New Category */}
-        <div className='flex gap-2 mt-2'>
-          <input
-            type='text'
-            value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.target.value)}
-            placeholder='New Category Name...'
-            className='bg-neutral-800 border border-neutral-700 rounded p-3 text-white flex-1'
-            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCategory())}
-          />
-          <button
-            type='button'
-            onClick={addCategory}
-            className='bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded font-bold'
-          >
-            Add Category
-          </button>
-        </div>
+        {/* Add Category */}
+        <Card className='border-dashed'>
+          <CardContent className='pt-6'>
+            <div className='flex gap-2'>
+              <Input
+                value={newCategoryName}
+                onChange={e => setNewCategoryName(e.target.value)}
+                placeholder='New Category Name...'
+                className='flex-1'
+                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addCategory())}
+              />
+              <Button type='button' variant='outline' onClick={addCategory}>
+                <Plus className='h-4 w-4 mr-2' />
+                Add Category
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Save Button */}
-      <button
-        type='submit'
-        disabled={saving}
-        className='bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4'
-      >
-        {saving ? 'Saving...' : 'Save Changes'}
-      </button>
+      <div className='flex justify-end'>
+        <Button type='submit' disabled={saving}>
+          {saving ? (
+            <>
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className='mr-2 h-4 w-4' />
+              Save Changes
+            </>
+          )}
+        </Button>
+      </div>
     </form>
   );
 }
