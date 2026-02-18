@@ -115,11 +115,13 @@ function getDefaultContent(): Record<string, any> {
       name: 'Dominik',
       jobTitle: 'Front End & WordPress Developer',
       backgroundVideo: '/background.mp4',
+      _meta: { key: 'hero', title: 'Hero Section', navTitle: 'Home', slug: 'hero', order: 1 },
     },
     about: {
       profileImage: '/profile.jpg',
       paragraph1: '"Hello there." I\'m Dominik, a Web Developer specializing in WordPress & Next.js.',
       paragraph2: 'My focus goes beyond writing lines of code; I architect solutions that are clean, maintainable, and reliable.',
+      _meta: { key: 'about', title: 'About Me', navTitle: 'About', slug: 'about', order: 2 },
     },
     projects: {
       featured: {
@@ -131,16 +133,23 @@ function getDefaultContent(): Record<string, any> {
         tags: ['Next.js', 'TypeScript', 'Tailwind'],
       },
       items: [],
+      _meta: { key: 'projects', title: 'Projects', navTitle: 'Projects', slug: 'projects', order: 3 },
     },
-    skills: [],
-    career: [],
+    skills: {
+      _meta: { key: 'skills', title: 'Skills', navTitle: 'Skills', slug: 'skills', order: 4 },
+    },
+    career: {
+      _meta: { key: 'career', title: 'Career', navTitle: 'Career', slug: 'career', order: 5 },
+    },
     contact: {
       description: "I'm currently open to new opportunities.",
       socialLinks: [],
+      _meta: { key: 'contact', title: 'Contact', navTitle: 'Contact', slug: 'contact', order: 6 },
     },
     siteSettings: {
       title: 'Dominik Czekański 👨🏻‍💻',
       description: "Hi, I'm Dominik and I sincerely welcome you to my website!",
+      _meta: { key: 'siteSettings', title: 'Site Settings', navTitle: null, slug: null, order: 99 },
     },
   };
 }
