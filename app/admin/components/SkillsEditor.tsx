@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Save, X, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Save, X, Plus, Trash2, GripVertical } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, DraggableProvided, DraggableStateSnapshot } from '@hello-pangea/dnd';
 
 import SectionSettings, { SectionMetadata } from './SectionSettings';
 
@@ -117,6 +118,21 @@ export default function SkillsEditor({ initialData, onSave }: SkillsEditorProps)
     setFormData({ ...formData, categories: newCategories });
   };
 
+  const onDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
+
+    if (sourceIndex === destinationIndex) return;
+
+    const newCategories = Array.from(formData.categories);
+    const [reorderedCategory] = newCategories.splice(sourceIndex, 1);
+    newCategories.splice(destinationIndex, 0, reorderedCategory);
+
+    setFormData({ ...formData, categories: newCategories });
+  };
+
   return (
     <form onSubmit={handleSubmit} className='space-y-6'>
       <div>
@@ -132,72 +148,90 @@ export default function SkillsEditor({ initialData, onSave }: SkillsEditorProps)
           <h3 className='text-lg font-semibold text-foreground'>Categories</h3>
         </div>
 
-        {formData.categories.map((category, catIndex) => (
-          <Card key={catIndex}>
-            <CardHeader className='pb-3'>
-              <div className='flex items-center gap-3'>
-                <Input
-                  value={category.category}
-                  onChange={e => updateCategoryName(catIndex, e.target.value)}
-                  className='font-semibold flex-1'
-                  placeholder='Category Name'
-                />
-                <Button
-                  type='button'
-                  variant='ghost'
-                  size='sm'
-                  onClick={() => removeCategory(catIndex)}
-                  className='text-muted-foreground hover:text-destructive shrink-0'
-                >
-                  <Trash2 className='h-4 w-4' />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className='space-y-3'>
-              <div className='flex flex-wrap gap-2'>
-                {category.items.map((skill, skillIndex) => (
-                  <Badge key={skillIndex} variant='secondary' className='gap-1 pr-1'>
-                    {skill}
-                    <button
-                      type='button'
-                      onClick={() => removeSkillFromCategory(catIndex, skillIndex)}
-                      className='ml-1 hover:text-destructive transition-colors rounded-full'
-                    >
-                      <X className='h-3 w-3' />
-                    </button>
-                  </Badge>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId='skills-categories'>
+            {(provided: DroppableProvided) => (
+              <div {...provided.droppableProps} ref={provided.innerRef} className='space-y-4'>
+                {formData.categories.map((category, catIndex) => (
+                  <Draggable key={catIndex} draggableId={`category-${catIndex}`} index={catIndex}>
+                    {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
+                      <div ref={provided.innerRef} {...provided.draggableProps} style={provided.draggableProps.style}>
+                        <Card className={`${snapshot.isDragging ? 'opacity-50 ring-2 ring-primary z-50' : ''}`}>
+                          <CardHeader className='pb-3'>
+                            <div className='flex items-center gap-3'>
+                              <div {...provided.dragHandleProps} className='cursor-grab hover:text-foreground text-muted-foreground'>
+                                <GripVertical className='h-5 w-5' />
+                              </div>
+                              <Input
+                                value={category.category}
+                                onChange={e => updateCategoryName(catIndex, e.target.value)}
+                                className='font-semibold flex-1'
+                                placeholder='Category Name'
+                              />
+                              <Button
+                                type='button'
+                                variant='ghost'
+                                size='sm'
+                                onClick={() => removeCategory(catIndex)}
+                                className='text-muted-foreground hover:text-destructive shrink-0'
+                              >
+                                <Trash2 className='h-4 w-4' />
+                              </Button>
+                            </div>
+                          </CardHeader>
+                          <CardContent className='space-y-3'>
+                            <div className='flex flex-wrap gap-2'>
+                              {category.items.map((skill, skillIndex) => (
+                                <Badge key={skillIndex} variant='secondary' className='gap-1 pr-1'>
+                                  {skill}
+                                  <button
+                                    type='button'
+                                    onClick={() => removeSkillFromCategory(catIndex, skillIndex)}
+                                    className='ml-1 hover:text-destructive transition-colors rounded-full'
+                                  >
+                                    <X className='h-3 w-3' />
+                                  </button>
+                                </Badge>
+                              ))}
+                              {category.items.length === 0 && <p className='text-sm text-muted-foreground'>No skills added yet.</p>}
+                            </div>
+                            <div className='flex gap-2'>
+                              <Input
+                                placeholder='Add skill...'
+                                className='flex-1'
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    addSkillToCategory(catIndex, (e.target as HTMLInputElement).value);
+                                    (e.target as HTMLInputElement).value = '';
+                                  }
+                                }}
+                              />
+                              <Button
+                                type='button'
+                                variant='outline'
+                                size='sm'
+                                onClick={e => {
+                                  const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                  addSkillToCategory(catIndex, input.value);
+                                  input.value = '';
+                                }}
+                              >
+                                <Plus className='h-4 w-4 mr-1' />
+                                Add
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+                  </Draggable>
                 ))}
-                {category.items.length === 0 && <p className='text-sm text-muted-foreground'>No skills added yet.</p>}
+                {provided.placeholder}
               </div>
-              <div className='flex gap-2'>
-                <Input
-                  placeholder='Add skill...'
-                  className='flex-1'
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addSkillToCategory(catIndex, (e.target as HTMLInputElement).value);
-                      (e.target as HTMLInputElement).value = '';
-                    }
-                  }}
-                />
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  onClick={e => {
-                    const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                    addSkillToCategory(catIndex, input.value);
-                    input.value = '';
-                  }}
-                >
-                  <Plus className='h-4 w-4 mr-1' />
-                  Add
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+            )}
+          </Droppable>
+        </DragDropContext>
 
         {/* Add Category */}
         <Card className='border-dashed'>
