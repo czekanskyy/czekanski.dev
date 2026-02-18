@@ -45,3 +45,5 @@ next-env.d.ts
 /lib/generated/prisma
 
 DEPLOYMENT_GUIDE_SUPABASE.md
+
+scripts/setup-prod-db.ps1
