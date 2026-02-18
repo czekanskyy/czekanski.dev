@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
   },
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
+  // Explicitly include Prisma packages for Vercel bundling to prevent runtime errors
   serverExternalPackages: ['@prisma/client', 'prisma'],
 };
 
