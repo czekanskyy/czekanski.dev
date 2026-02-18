@@ -10,7 +10,8 @@ export async function getContent(): Promise<Record<string, any>> {
       },
     });
 
-    const content: Record<string, any> = {};
+    // Start with defaults to ensure all sections exist
+    const content: Record<string, any> = getDefaultContent();
 
     if (sections.length > 0) {
       for (const section of sections) {
@@ -27,8 +28,8 @@ export async function getContent(): Promise<Record<string, any>> {
           },
         };
       }
-      return content;
     }
+    return content;
 
     // If DB is empty, return defaults
     return getDefaultContent();

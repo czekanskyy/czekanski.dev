@@ -78,7 +78,7 @@ export default function Projects({ data, id, index }: ProjectsProps) {
   }
 
   return (
-    <div id={id || 'projects'} className={`min-h-screen ${firaCode.className} flex flex-col max-w-[1200px] mx-auto p-8 pt-28 pb-64 justify-center snap-start`}>
+    <div id={id || 'projects'} className={`min-h-screen ${firaCode.className} flex flex-col max-w-[1200px] mx-auto p-8 pt-28 pb-96 justify-center snap-start`}>
       <h2 className='text-3xl md:text-5xl text-white font-bold mb-12'>
         {index && <span className='text-2xl text-blue-400'>#{index}</span>} {sectionTitle}
       </h2>
@@ -136,11 +136,21 @@ export default function Projects({ data, id, index }: ProjectsProps) {
 
       {/* Project Grid */}
       {gridProjects.length > 0 && (
-        <div className='relative'>
-          <div
-            className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-500 ${!isExpanded ? 'max-h-[600px] overflow-hidden' : ''}`}
-          >
-            {gridProjects.map((project, i) => {
+        <div className='relative flex flex-col gap-8'>
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+            {(isExpanded ? gridProjects : gridProjects.slice(0, 2)).map((project, i) => {
+              // We need to keep the visual grid pattern consistent.
+              // When collapsed (slice 0,2), we display first two items.
+              // Item 0: isLarge (col-span-2)
+              // Item 1: isSmall (col-span-1)
+              // This perfectly fills one row in lg:grid-cols-3.
+              // On expansion, the pattern continues.
+              // However, if we just use 'i' from the sliced map, i resets to 0,1.
+              // If we use 'i' from the full map, it continues.
+              // But here, 'i' comes from the map of the *rendered* array.
+              // So in collapsed mode: i=0, i=1. logic: 0->large, 1->small. Correct.
+              // In expanded mode: i=0, i=1, i=2... logic holds.
+
               const isLarge = i % 4 === 0 || i % 4 === 3;
               const colSpan = isLarge ? 'lg:col-span-2' : 'lg:col-span-1';
 
@@ -193,22 +203,22 @@ export default function Projects({ data, id, index }: ProjectsProps) {
             })}
           </div>
 
-          {/* Fade Out Overlay & Load More Button */}
-          {!isExpanded && gridProjects.length > 4 && (
-            <div className='absolute bottom-0 left-0 w-full h-64 bg-linear-to-t from-[#09090B] via-[#09090B]/80 to-transparent flex items-end justify-center pb-8 z-10'>
+          {/* Gradient Overlay & Load More Button */}
+          {!isExpanded && gridProjects.length > 2 && (
+            <div className='absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent flex items-end justify-center pb-8 z-10 pointer-events-none'>
               <button
                 onClick={() => setIsExpanded(true)}
-                className='text-white font-mono text-lg hover:text-blue-400 transition-colors flex items-center gap-2 group'
+                className='pointer-events-auto text-neutral-500 font-mono hover:text-white transition-colors flex items-center gap-2'
               >
-                Load More <span className='group-hover:translate-x-1 transition-transform'>&gt;_</span>
+                Load More <span className='rotate-90'>&gt;</span>
               </button>
             </div>
           )}
 
           {isExpanded && (
             <div className='flex justify-center mt-8'>
-              <button onClick={() => setIsExpanded(false)} className='text-neutral-500 font-mono text-sm hover:text-white transition-colors'>
-                Show Less
+              <button onClick={() => setIsExpanded(false)} className='text-neutral-500 font-mono hover:text-white transition-colors flex items-center gap-2'>
+                Show Less <span className='rotate-90'>&lt;</span>
               </button>
             </div>
           )}

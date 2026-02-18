@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { getSectionContent, saveSectionContent } from '@/lib/db';
 import { auth } from '@/auth';
 
@@ -33,6 +34,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Save section content
     await saveSectionContent(section, data);
+
+    // Revalidate the home page to reflect changes immediately
+    revalidatePath('/');
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
