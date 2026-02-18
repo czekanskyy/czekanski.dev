@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
   },
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
+  serverExternalPackages: ['@prisma/client', 'prisma'],
 };
 
 export default nextConfig;
