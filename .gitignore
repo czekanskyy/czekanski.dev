@@ -43,3 +43,5 @@ next-env.d.ts
 
 # Prisma
 /lib/generated/prisma
+
+DEPLOYMENT_GUIDE_SUPABASE.md
