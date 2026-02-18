@@ -1,6 +1,6 @@
-# Portfolio Website - czekanski.dev
+# Hey guys, I finally finished my portfolio! 🚀
 
-A modern, dynamic portfolio website built with **Next.js 16**, **Prisma 7**, **PostgreSQL** (via Supabase), and **Tailwind CSS**.
+After quite some time, I've finally put together my personal portfolio website. I wanted something that's not just a static showcase, but a fully dynamic application that stays fresh without me having to touch the code every time.
 
 ## 🔗 Live Site
 
@@ -81,4 +81,10 @@ Check it out here: [czekanski.dev](https://czekanski.dev)
 
 ## 📝 License
 
-Private. Contact me for usage inquiries.
+This project is private. Contact me for usage inquiries.
+
+---
+
+_Built with ❤️ by Dominik Czekański_
+
+For questions or suggestions, check out my contact page at [czekanski.dev](https://czekanski.dev)
