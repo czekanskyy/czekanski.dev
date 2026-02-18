@@ -1,31 +1,30 @@
-# Hey guys, I finally finished my portfolio! 🚀
+# Portfolio Website - czekanski.dev
 
-After quite some time, I've finally put together my personal portfolio website. I wanted something that's not just a static showcase, but a fully dynamic application that stays fresh without me having to touch the code every time.
+A modern, dynamic portfolio website built with **Next.js 16**, **Prisma 7**, **PostgreSQL** (via Supabase), and **Tailwind CSS**.
 
 ## 🔗 Live Site
 
 Check it out here: [czekanski.dev](https://czekanski.dev)
 
-## ✨ What's inside?
+## ✨ key Features
 
-- **Modern & Snappy**: Built with **Next.js 16**, leveraging the App Router for a liquid-smooth experience.
-- **Fully Dynamic Content**: Every bit of text, every project details, and even the skills list is fetched from a database. I can update anything on the fly.
-- **Responsive Background Media**: The site intelligently switches between different high-quality video or image backgrounds for desktop and mobile, so it looks great on any device.
-- **Dynamic Meta & SEO**: I can manage page titles, SEO descriptions, and even the favicon dynamically.
-- **Premium Aesthetics**: A crisp dark-mode design with custom micro-animations and a focus on visual excellence.
-- **Contact Form**: Fully functional contact form with email notifications via Gmail SMTP.
+- **Full Dynamic Content**: Managed via a secure admin dashboard.
+- **Responsive Design**: Mobile-first approach with custom animations.
+- **Dark/Light Mode**: System-aware theming.
+- **Media Management**: Support for image and video backgrounds (WebM/MP4).
+- **SEO Optimized**: Dynamic metadata and OpenGraph tags.
+- **Contact Form**: Email integration via SMTP.
 
 ## 🛠 Tech Stack
 
-- **Frontend**: Next.js 16 (React), Tailwind CSS.
-- **Backend/Data**: Prisma ORM with MySQL/MariaDB.
-- **Auth**: NextAuth.js for secure dashboard access.
-- **Email**: Nodemailer with Gmail SMTP.
-- **Hosting**: Hostinger (Node.js + MySQL)
+- **Frontend**: Next.js 16 (App Router), React 19, Tailwind CSS
+- **Database**: PostgreSQL (Supabase)
+- **ORM**: Prisma 7 (with `@prisma/adapter-pg` for Edge compatibility)
+- **Auth**: NextAuth.js v5 (Edge-compatible)
+- **Storage**: Supabase Storage
+- **Deployment**: Vercel (recommended) or any Node.js host
 
 ## ⚙️ Quick Start - Local Development
-
-If you'd like to run this project locally:
 
 1. **Clone the repository**
 
@@ -40,159 +39,105 @@ If you'd like to run this project locally:
    pnpm install
    ```
 
-3. **Setup environment variables**
+3. **Setup Environment**
+   Duplicate `.env.example` to `.env.local` and configure your variables:
 
    ```bash
-   cp env.example .env.local
-   # Edit .env.local with your database and auth credentials
+   cp .env.example .env.local
    ```
 
-4. **Run database migrations**
+4. **Start Database (Docker)**
+   This project uses a local PostgreSQL instance via Docker for development.
+
+   ```bash
+   docker-compose up -d
+   ```
+
+5. **Initialize Database**
 
    ```bash
    npx prisma db push
+   # Optional: Seed data
+   # npx prisma db seed
    ```
 
-5. **Start development server**
-
+6. **Start Dev Server**
    ```bash
    pnpm dev
    ```
+   Access the app at `http://localhost:3000`.
 
-6. **Access the app**
-   - Frontend: http://localhost:3000
-   - Admin Dashboard: http://localhost:3000/admin/login
+## 📦 Supabase Setup Guide
 
-## 🚀 Deployment - Hostinger
+To deploy this project with working content and images, follow these steps to prepare your Supabase project.
 
-For production deployment on Hostinger, see the detailed guides:
+### 1. Create Supabase Project
 
-- **📖 [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - Complete step-by-step guide
-- **✅ [DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md)** - Pre-deployment checklist
-- **⚡ [QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference card
+1. Go to [database.new](https://database.new) and create a new project.
+2. Note your `Project URL` and `API Keys`.
 
-### Quick Deploy
+### 2. Configure Database Connectivity
 
-```bash
-# 1. Test build locally
-pnpm build
+Get your **Connection String** from Project Settings -> Database -> Connection string (URI).
 
-# 2. Create backup
-.\scripts\deploy-hostinger.ps1  # Windows
-# or
-./scripts/deploy-hostinger.sh   # macOS/Linux
+- **Mode**: Transaction Mode (Port 6543) is recommended for serverless/edge environments.
+- Update your `.env` file (locally or in production dashboard):
+  ```env
+  DATABASE_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true"
+  ```
 
-# 3. Push to Hostinger
-git push hostinger main
+### 3. Setup Storage (Images & Media)
 
-# 4. Configure on Hostinger Dashboard
-# - Set environment variables from .env.production.example
-# - Migrate database: npm run db:push
+The portfolio uses Supabase Storage for project screenshots and background videos.
 
-# 5. Verify at https://czekanski.dev
+1. Go to **Storage** in the Supabase dashboard.
+2. Create a new bucket named **`uploads`**.
+   - **Public**: Toggle "Association Public" to ON.
+3. **Configure Policies (RLS)**:
+   In the Storage Policies section for the `uploads` bucket, add the following policies:
+   - **Public Read Access** (Allows anyone to view images):
+     - _Policy Name_: "Public Access"
+     - _Allowed Operations_: SELECT
+     - _Target Roles_: `anon`, `authenticated`
+     - _Policy definition_: `bucket_id = 'uploads'`
+
+   - **Authenticated Upload/Delete** (Allows admin to upload/delete):
+     - _Policy Name_: "Admin Access"
+     - _Allowed Operations_: INSERT, UPDATE, DELETE
+     - _Target Roles_: `authenticated` (or restrict to specific user UUIDs if preferred)
+     - _Policy definition_: `bucket_id = 'uploads'`
+
+### 4. Environment Variables
+
+Ensure your production environment variables include Supabase credentials (required for upload API):
+
+```env
+NEXT_PUBLIC_SUPABASE_URL="https://[PROJECT_REF].supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="[YOUR_SERVICE_ROLE_KEY]"
 ```
+
+> **Security Note**: Never expose the `service_role` key on the client side.
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+
+1. Push code to GitHub.
+2. Import project into Vercel.
+3. Add Environment Variables (Database URL, Auth Secret, Supabase URL/Key).
+4. Redeploy.
 
 ## 📁 Project Structure
 
 ```
-czekanski.dev/
-├── app/                          # Next.js App Router
-│   ├── actions/                  # Server actions (email, etc.)
-│   ├── api/                      # API routes
-│   ├── admin/                    # Admin dashboard
-│   ├── Components/               # Page sections
-│   └── layout.tsx                # Root layout
-├── components/                   # Reusable components
-├── public/                       # Static assets
-│   └── uploads/                  # Dynamic user uploads
-├── prisma/                       # Database schema & migrations
-├── scripts/                      # Utility scripts
-│   ├── deploy-hostinger.ps1      # Windows deployment helper
-│   └── deploy-hostinger.sh       # Linux/macOS deployment helper
-└── types/                        # TypeScript type definitions
+├── app/                  # Next.js App Router (Pages & API)
+├── components/           # React Components
+├── lib/                  # Utilities (Prisma, Supabase, Auth)
+├── prisma/               # Database Schema
+├── public/               # Static Assets
+└── scripts/              # Helper scripts
 ```
-
-## 🔧 Available Scripts
-
-```bash
-# Development
-pnpm dev              # Start dev server
-
-# Building
-pnpm build            # Production build
-pnpm start            # Start production server
-
-# Database
-pnpm db:push          # Push schema to database
-pnpm db:migrate       # Create migrations
-pnpm db:seed          # Run seed file
-pnpm init-admin       # Initialize admin account
-
-# Code quality
-pnpm lint             # Run ESLint
-```
-
-## 🌐 Environment Variables
-
-### Development (.env.local)
-
-```env
-DATABASE_URL=mysql://user:password@localhost:3306/database
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=app-specific-password
-NEXTAUTH_SECRET=your-secret
-AUTH_SECRET=your-secret
-ADMIN_EMAIL=admin@example.com
-ADMIN_SEED_PASSWORD=password
-ADMIN_NAME=Admin
-```
-
-### Production (.env.production)
-
-See `.env.production.example` for production configuration on Hostinger.
-
-## 📊 Features
-
-### Public Features
-
-- ✓ Dynamic portfolio sections (About, Projects, Skills, Contact)
-- ✓ Responsive design (mobile, tablet, desktop)
-- ✓ SEO optimized
-- ✓ Contact form with email notifications
-- ✓ Smooth animations and transitions
-
-### Admin Features
-
-- ✓ Secure dashboard (NextAuth.js)
-- ✓ Edit all content directly
-- ✓ Manage project images
-- ✓ Update social links
-- ✓ Modify security settings
-- ✓ View and manage uploaded files
-
-## 🔒 Security
-
-- NextAuth.js for authentication
-- Password hashing with bcryptjs
-- Environment variables for sensitive data
-- HTTPS enforced
-- CSRF protection
-- Input validation and sanitization
-
-## 🎯 Performance
-
-- Optimized images with next/image
-- WebP & AVIF format support
-- Code splitting and lazy loading
-- Static generation where possible
-- Database query optimization with Prisma
 
 ## 📝 License
 
-This project is private. Contact me for usage inquiries.
-
----
-
-_Built with ❤️ by Dominik Czekański_
-
-For questions or suggestions, check out my contact page at [czekanski.dev](https://czekanski.dev)
+Private. Contact me for usage inquiries.

@@ -43,7 +43,3 @@ next-env.d.ts
 
 # Prisma
 /lib/generated/prisma
-
-# Public uploads (dynamically managed)
-/public/uploads/*
-!/public/uploads/.gitkeep

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { supabase, STORAGE_BUCKET } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,24 +22,31 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-    try {
-      await mkdir(uploadsDir, { recursive: true });
-    } catch {
-      // Directory already exists, ignore
-    }
-
     // Generate unique filename
     const timestamp = Date.now();
     const filename = `${timestamp}-${file.name}`;
-    const filepath = path.join(uploadsDir, filename);
 
-    // Write file to disk
-    await writeFile(filepath, buffer);
+    // Upload to Supabase Storage
+    const { data, error: uploadError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(filename, buffer, {
+        contentType: file.type || 'application/octet-stream',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error('Supabase upload error:', uploadError);
+      return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(data.path);
+
+    const publicUrl = urlData.publicUrl;
 
     // Record upload in database
-    const publicUrl = `/uploads/${filename}`;
     await prisma.upload.create({
       data: {
         filename: file.name,

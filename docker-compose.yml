@@ -1,21 +1,21 @@
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: czekanski_mysql
+  postgres:
+    image: postgres:15-alpine
+    container_name: czekanski_postgres
     restart: unless-stopped
-    command: --default-authentication-plugin=mysql_native_password
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: czekanski_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: czekanski_dev
     ports:
-      - '3306:3306'
+      - '5432:5432'
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-uroot', '-proot']
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  mysql_data:
+  postgres_data:
